@@ -6,7 +6,6 @@
       <module fileurl="file://$PROJECT_DIR$/app/app.iml" filepath="$PROJECT_DIR$/app/app.iml" />
       <module fileurl="file://$PROJECT_DIR$/architectrue/architectrue.iml" filepath="$PROJECT_DIR$/architectrue/architectrue.iml" />
       <module fileurl="file://$PROJECT_DIR$/zoomlibrary/zoomlibrary.iml" filepath="$PROJECT_DIR$/zoomlibrary/zoomlibrary.iml" />
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/app, /zoomlibrary/zoomlibrary.iml" filepath="$PROJECT_DIR$/.idea/modules/app, /zoomlibrary/zoomlibrary.iml" />
     </modules>
   </component>
 </project>
