@@ -18,6 +18,19 @@ import com.xyl.architectrue.utils.Utils;
 
 public class App extends Application {
 
+    private static App app;
+
+    public static App getInstance() {
+        if(app == null ){
+            synchronized (App.class) {
+                if(app == null) {
+                    app = new App();
+                }
+            }
+        }
+
+        return app;
+    }
 
     @Override
     public void onCreate() {
@@ -26,5 +39,6 @@ public class App extends Application {
         Fresco.initialize(this);
         Utils.init(getApplicationContext());
         LogUtils.init(true, false, 'e', "Zhifu");
+        app = this;
     }
 }
