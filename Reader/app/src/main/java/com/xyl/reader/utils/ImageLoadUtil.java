@@ -5,6 +5,8 @@ import android.widget.ImageView;
 import com.bumptech.glide.Glide;
 import com.xyl.reader.R;
 
+import java.util.Random;
+
 /**
  * User: ShaudXiao
  * Date: 2017-01-12
@@ -43,4 +45,94 @@ public class ImageLoadUtil {
                 .transform(new GlideCircleTransform(imageView.getContext()))
                 .into(imageView);
     }
+
+    /**
+     * 显示随机的图片(每日推荐)
+     *
+     * @param imgNumber    有几张图片要显示
+     * @param position     第几张图片
+     * @param itemPosition 是第几个item，如android是第一个
+     * @param imageView    对应图片控件
+     */
+    public static void displayRandom(int imgNumber, int position, int itemPosition, ImageView imageView) {
+        Glide.with(imageView.getContext())
+                .load(getRandomPic(imgNumber, position, itemPosition))
+                .placeholder(getDefaultPic(imgNumber, position))
+                .error(getDefaultPic(imgNumber, position))
+                .crossFade(1500)
+                .into(imageView);
+    }
+
+    private static int getDefaultPic(int imgNumber, int position) {
+        switch (imgNumber) {
+            case 1:
+                return R.drawable.img_two_bi_one;
+            case 2:
+                return R.drawable.img_four_bi_three;
+            case 3:
+                return R.drawable.img_one_bi_one;
+        }
+        return R.drawable.img_four_bi_three;
+    }
+
+    private static int getRandomPic(int imgNumber, int position, int itemPosition) {
+        Random random = new Random();
+        int randomInt = 0;
+        switch (imgNumber) {
+            case 1:
+                randomInt = random.nextInt(homeOne.length);
+                return homeOne[randomInt];
+            case 2:
+                randomInt = random.nextInt(homeTwo.length);
+                return homeTwo[randomInt];
+            case 3:
+                randomInt = random.nextInt(homeSix.length);
+                return homeSix[randomInt];
+        }
+        return homeOne[randomInt];
+    }
+
+//--------------------------------------
+
+    /**
+     * 用于干货item，将gif图转换为静态图
+     */
+    public static void displayGif(String url, ImageView imageView) {
+
+        Glide.with(imageView.getContext()).load(url)
+                .asBitmap()
+                .placeholder(R.drawable.img_one_bi_one)
+                .error(R.drawable.img_one_bi_one)
+//                .skipMemoryCache(true) //跳过内存缓存
+//                .crossFade(1000)
+//                .diskCacheStrategy(DiskCacheStrategy.SOURCE)// 缓存图片源文件（解决加载gif内存溢出问题）
+//                .into(new GlideDrawableImageViewTarget(imageView, 1));
+                .into(imageView);
+    }
+
+    /**
+     * 书籍、妹子图、电影列表图
+     * 默认图区别
+     */
+    public static void displayEspImage(String url, ImageView imageView, int type) {
+        Glide.with(imageView.getContext())
+                .load(url)
+                .crossFade(500)
+                .placeholder(getDefaultPic(type))
+                .error(getDefaultPic(type))
+                .into(imageView);
+    }
+
+    private static int getDefaultPic(int type) {
+        switch (type) {
+            case 0:// 电影
+                return R.drawable.img_default_movie;
+            case 1:// 妹子
+                return R.drawable.img_default_meizi;
+            case 2:// 书籍
+                return R.drawable.img_default_book;
+        }
+        return R.drawable.img_default_meizi;
+    }
+
 }

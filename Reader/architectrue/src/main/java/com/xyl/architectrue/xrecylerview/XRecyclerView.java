@@ -1,7 +1,9 @@
 package com.xyl.architectrue.xrecylerview;
 
+
 import android.content.Context;
-import android.support.annotation.Nullable;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.support.v7.widget.GridLayoutManager;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
@@ -12,93 +14,168 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 
-import com.xyl.architectrue.utils.NetworkUtils;
+import com.xyl.architectrue.utils.LogUtils;
 
 /**
- * User: ShaudXiao
- * Date: 2017-01-11
- * Time: 11:15
- * Company: zx
- * Description:
- * FIXME
+ * Created by jingbin on 2016/1/28.
  */
-
-
 public class XRecyclerView extends RecyclerView {
-
     private LoadingListener mLoadingListener;
     private WrapAdapter mWrapAdapter;
-    private LoadingMoreFooter mLoadingMoreFooter;
-    private YunRefreshHeader mYunRefreshHeader;
-
-    private SparseArray<View> mHeaderView;
-    private SparseArray<View> mFooterView;
-
-    private boolean isPullRefreshEnable = true;
-    private boolean isLoadMoreEnable = true;
-
+    private SparseArray<View> mHeaderViews = new SparseArray<View>();
+    private SparseArray<View> mFootViews = new SparseArray<View>();
+    private boolean pullRefreshEnabled = true;
+    private boolean loadingMoreEnabled = true;
+    private YunRefreshHeader mRefreshHeader;
     private boolean isLoadingData;
-
-    private int previousTotal;
-
+    public int previousTotal;
     public boolean isnomore;
-
-    private float lastY = -1;
-
-    private static final float DRAG_RATE = 1.75F;
-
+    private float mLastY = -1;
+    private static final float DRAG_RATE = 1.75f;
+    // 是否是额外添加FooterView
     private boolean isOther = false;
-
-
-    public XRecyclerView(Context context, @Nullable AttributeSet attrs) {
-        this(context, attrs, 0);
-    }
-
-    public XRecyclerView(Context context, @Nullable AttributeSet attrs, int defStyle) {
-        super(context, attrs, defStyle);
-        initView(context);
-    }
 
     public XRecyclerView(Context context) {
         this(context, null);
     }
 
+    public XRecyclerView(Context context, AttributeSet attrs) {
+        this(context, attrs, 0);
+    }
+
+    public XRecyclerView(Context context, AttributeSet attrs, int defStyle) {
+        super(context, attrs, defStyle);
+        init(context);
+    }
+
+    private void init(Context context) {
+        if (pullRefreshEnabled) {
+            YunRefreshHeader refreshHeader = new YunRefreshHeader(context);
+            LogUtils.e("dddddddddddddddddddd 1");
+            mHeaderViews.put(0, refreshHeader);
+            mRefreshHeader = refreshHeader;
+        }
+        LogUtils.e("dddddddddddddddddddd");
+        LoadingMoreFooter footView = new LoadingMoreFooter(context);
+        addFootView(footView, false);
+        mFootViews.get(0).setVisibility(GONE);
+    }
+
+    /**
+     * 改为公有。供外添加view使用,使用标识
+     * 注意：使用后不能使用 上拉刷新，否则添加无效
+     * 使用时 isOther 传入 true，然后调用 noMoreLoading即可。
+     */
+    public void addFootView(final View view, boolean isOther) {
+        mFootViews.clear();
+        mFootViews.put(0, view);
+        this.isOther = isOther;
+    }
+
+    /**
+     * 相当于加一个空白头布局：
+     * 只有一个目的：为了滚动条显示在最顶端
+     * 因为默认加了刷新头布局，不处理滚动条会下移。
+     * 和 setPullRefreshEnabled(false) 一块儿使用
+     * 使用下拉头时，此方法不应被使用！
+     */
+    public void clearHeader() {
+        mHeaderViews.clear();
+        final float scale = getContext().getResources().getDisplayMetrics().density;
+        int height = (int) (1.0f * scale + 0.5f);
+        ViewGroup.LayoutParams params = new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, height);
+        View view = new View(getContext());
+        view.setLayoutParams(params);
+        mHeaderViews.put(0, view);
+    }
+
+    public void addHeaderView(View view) {
+        if (pullRefreshEnabled && !(mHeaderViews.get(0) instanceof YunRefreshHeader)) {
+            YunRefreshHeader refreshHeader = new YunRefreshHeader(getContext());
+            mHeaderViews.put(0, refreshHeader);
+            mRefreshHeader = refreshHeader;
+        }
+        mHeaderViews.put(mHeaderViews.size(), view);
+    }
+
+    private void loadMoreComplete() {
+        isLoadingData = false;
+        View footView = mFootViews.get(0);
+        if (previousTotal <= getLayoutManager().getItemCount()) {
+            if (footView instanceof LoadingMoreFooter) {
+                ((LoadingMoreFooter) footView).setSate(LoadingMoreFooter.STATE_COMPLETE);
+            } else {
+                footView.setVisibility(View.GONE);
+            }
+        } else {
+            if (footView instanceof LoadingMoreFooter) {
+                ((LoadingMoreFooter) footView).setSate(LoadingMoreFooter.STATE_NOMORE);
+            } else {
+                footView.setVisibility(View.GONE);
+            }
+            isnomore = true;
+        }
+        previousTotal = getLayoutManager().getItemCount();
+    }
+
+    public void noMoreLoading() {
+        isLoadingData = false;
+        final View footView = mFootViews.get(0);
+        isnomore = true;
+        if (footView instanceof LoadingMoreFooter) {
+            ((LoadingMoreFooter) footView).setSate(LoadingMoreFooter.STATE_NOMORE);
+        } else {
+            footView.setVisibility(View.GONE);
+        }
+        // 额外添加的footView
+        if (isOther) {
+            footView.setVisibility(View.VISIBLE);
+        }
+    }
+
+    public void refreshComplete() {
+        //  mRefreshHeader.refreshComplate();
+        if (isLoadingData) {
+            loadMoreComplete();
+        } else {
+            mRefreshHeader.refreshComplete();
+        }
+    }
+
     @Override
     public void setAdapter(Adapter adapter) {
-        super.setAdapter(adapter);
+        mWrapAdapter = new WrapAdapter(mHeaderViews, mFootViews, adapter);
+        super.setAdapter(mWrapAdapter);
+        adapter.registerAdapterDataObserver(mDataObserver);
     }
 
     @Override
     public void onScrollStateChanged(int state) {
         super.onScrollStateChanged(state);
 
-        if (state == RecyclerView.SCROLL_STATE_IDLE && mLoadingListener != null
-                && !isLoadingData && isLoadMoreEnable) {
+        if (state == RecyclerView.SCROLL_STATE_IDLE && mLoadingListener != null && !isLoadingData && loadingMoreEnabled) {
             LayoutManager layoutManager = getLayoutManager();
-            int lastVisiableItemPosition;
+            int lastVisibleItemPosition;
             if (layoutManager instanceof GridLayoutManager) {
-                lastVisiableItemPosition = ((GridLayoutManager) layoutManager).findLastVisibleItemPosition();
+                lastVisibleItemPosition = ((GridLayoutManager) layoutManager).findLastVisibleItemPosition();
             } else if (layoutManager instanceof StaggeredGridLayoutManager) {
                 int[] into = new int[((StaggeredGridLayoutManager) layoutManager).getSpanCount()];
-                lastVisiableItemPosition = findMax(into);
+                ((StaggeredGridLayoutManager) layoutManager).findLastVisibleItemPositions(into);
+                lastVisibleItemPosition = findMax(into);
             } else {
-                lastVisiableItemPosition = ((LinearLayoutManager) layoutManager).findLastVisibleItemPosition();
+                lastVisibleItemPosition = ((LinearLayoutManager) layoutManager).findLastVisibleItemPosition();
             }
-
             if (layoutManager.getChildCount() > 0
-                    && lastVisiableItemPosition >= layoutManager.getItemCount() - 1
-                    && layoutManager.getItemCount() > layoutManager.getChildCount()
-                    && !isnomore
-                    && mYunRefreshHeader.getState() < YunRefreshHeader.STATE_REFRESHING) {
-                View footView = mFooterView.get(0);
+                    && lastVisibleItemPosition >= layoutManager.getItemCount() - 1 && layoutManager.getItemCount() > layoutManager.getChildCount() && !isnomore && mRefreshHeader.getState() < YunRefreshHeader.STATE_REFRESHING) {
+
+                View footView = mFootViews.get(0);
                 isLoadingData = true;
                 if (footView instanceof LoadingMoreFooter) {
                     ((LoadingMoreFooter) footView).setSate(LoadingMoreFooter.STATE_LOAING);
                 } else {
                     footView.setVisibility(View.VISIBLE);
                 }
-
-                if (NetworkUtils.isConnected()) {
+                if (isNetWorkConnected(getContext())) {
                     mLoadingListener.onLoadMore();
                 } else {
                     postDelayed(new Runnable() {
@@ -110,55 +187,91 @@ public class XRecyclerView extends RecyclerView {
                 }
             }
         }
-
     }
 
     @Override
-    public boolean onTouchEvent(MotionEvent e) {
-        if (lastY == -1) {
-            lastY = e.getRawY();
+    public boolean onTouchEvent(MotionEvent ev) {
+        if (mLastY == -1) {
+            mLastY = ev.getRawY();
         }
-
-        switch (e.getAction()) {
+        switch (ev.getAction()) {
             case MotionEvent.ACTION_DOWN:
-                lastY = e.getRawY();
+                mLastY = ev.getRawY();
                 break;
             case MotionEvent.ACTION_MOVE:
-                final float deltaY = e.getRawY() - lastY;
-                mYunRefreshHeader.onMore(deltaY / DRAG_RATE);
-                if (mYunRefreshHeader.getVisiableHeight() > 0 && mYunRefreshHeader.getState() < YunRefreshHeader.STATE_REFRESHING) {
-                    return false;
+                final float deltaY = ev.getRawY() - mLastY;
+                mLastY = ev.getRawY();
+                if (isOnTop() && pullRefreshEnabled) {
+                    mRefreshHeader.onMore(deltaY / DRAG_RATE);
+                    if (mRefreshHeader.getVisiableHeight() > 0 && mRefreshHeader.getState() < YunRefreshHeader.STATE_REFRESHING) {
+                        return false;
+                    }
                 }
                 break;
             default:
-                lastY = -1;
-                if (isOnTop() && isPullRefreshEnable) {
-                    if (mYunRefreshHeader.releaseAction()) {
+                mLastY = -1; // reset
+                if (isOnTop() && pullRefreshEnabled) {
+                    if (mRefreshHeader.releaseAction()) {
                         if (mLoadingListener != null) {
                             mLoadingListener.onRefresh();
                             isnomore = false;
                             previousTotal = 0;
-                            final View view = mHeaderView.get(0);
-                            if (view instanceof LoadingMoreFooter) {
-                                if (view.getVisibility() != View.GONE) {
-                                    view.setVisibility(View.GONE);
+                            final View footView = mFootViews.get(0);
+                            if (footView instanceof LoadingMoreFooter) {
+                                if (footView.getVisibility() != View.GONE) {
+                                    footView.setVisibility(View.GONE);
                                 }
                             }
                         }
                     }
-
                 }
                 break;
         }
-
-
-        return super.onTouchEvent(e);
+        return super.onTouchEvent(ev);
     }
 
-    private final RecyclerView.AdapterDataObserver mDataObserver = new AdapterDataObserver() {
+    private int findMax(int[] lastPositions) {
+        int max = lastPositions[0];
+        for (int value : lastPositions) {
+            if (value > max) {
+                max = value;
+            }
+        }
+        return max;
+    }
+
+    private int findMin(int[] firstPositions) {
+        int min = firstPositions[0];
+        for (int value : firstPositions) {
+            if (value < min) {
+                min = value;
+            }
+        }
+        return min;
+    }
+
+    public boolean isOnTop() {
+        if (mHeaderViews == null || mHeaderViews.size() == 0) {
+            return false;
+        }
+
+        View view = mHeaderViews.get(0);
+        if (view.getParent() != null) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    private final AdapterDataObserver mDataObserver = new AdapterDataObserver() {
         @Override
         public void onChanged() {
             mWrapAdapter.notifyDataSetChanged();
+        }
+
+        @Override
+        public void onItemRangeInserted(int positionStart, int itemCount) {
+            mWrapAdapter.notifyItemRangeInserted(positionStart, itemCount);
         }
 
         @Override
@@ -172,11 +285,6 @@ public class XRecyclerView extends RecyclerView {
         }
 
         @Override
-        public void onItemRangeInserted(int positionStart, int itemCount) {
-            mWrapAdapter.notifyItemRangeInserted(positionStart, itemCount);
-        }
-
-        @Override
         public void onItemRangeRemoved(int positionStart, int itemCount) {
             mWrapAdapter.notifyItemRangeRemoved(positionStart, itemCount);
         }
@@ -187,119 +295,37 @@ public class XRecyclerView extends RecyclerView {
         }
     };
 
-    public boolean isOnTop() {
-        if (mHeaderView == null || mHeaderView.size() == 0) {
-            return false;
-        }
 
-        View view = mHeaderView.get(0);
-        if (view.getParent() != null) {
-            return true;
-        } else {
-            return false;
-        }
+    public void setLoadingListener(LoadingListener listener) {
+        mLoadingListener = listener;
     }
 
-    private void initView(Context context) {
-        if (isPullRefreshEnable) {
-            YunRefreshHeader yunRefreshHeader = new YunRefreshHeader(context);
-            mHeaderView.put(0, yunRefreshHeader);
-            this.mYunRefreshHeader = yunRefreshHeader;
-        }
-
-        LoadingMoreFooter footer = new LoadingMoreFooter(context);
-        addFootView(footer, false);
-        mFooterView.get(0).setVisibility(View.GONE);
-
+    public void setPullRefreshEnabled(boolean pullRefreshEnabled) {
+        this.pullRefreshEnabled = pullRefreshEnabled;
     }
 
-    public void addHeaderView(View view) {
-        if (isPullRefreshEnable && !(mHeaderView.get(0) instanceof YunRefreshHeader)) {
-            YunRefreshHeader yunRefreshHeader = new YunRefreshHeader(getContext());
-            mHeaderView.put(0, yunRefreshHeader);
-            this.mYunRefreshHeader = yunRefreshHeader;
-        }
-
-        mHeaderView.put(mHeaderView.size(), view);
-    }
-
-    public void clearHeaderView() {
-        mHeaderView.clear();
-        final float scale = getContext().getResources().getDisplayMetrics().density;
-        int height = (int) (1.0f * scale + 0.5f);
-        ViewGroup.LayoutParams lp = new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, height);
-        View view = new View(getContext());
-        view.setLayoutParams(lp);
-        mHeaderView.put(0, view);
-    }
-
-    public void addFootView(View view, boolean isOther) {
-        mFooterView.clear();
-        mFooterView.put(0, view);
-        this.isOther = isOther;
-    }
-
-    public void noMoreLoading() {
-        isLoadingData = false;
-        final View footView = mFooterView.get(0);
-        isnomore = true;
-        if (footView instanceof LoadingMoreFooter) {
-            ((LoadingMoreFooter) footView).setSate(LoadingMoreFooter.STATE_NOMORE);
-        } else {
-            footView.setVisibility(View.GONE);
-        }
-
-        if (isOther) {
-            footView.setVisibility(View.VISIBLE);
-        }
-    }
-
-    public void refreshComplete() {
-        if (isLoadingData) {
-            loadMoreComplete();
-        } else {
-            mYunRefreshHeader.refreshComplete();
-        }
-    }
-
-
-    public void setLoadingListener(LoadingListener loadingListener) {
-        mLoadingListener = loadingListener;
-    }
-
-    public void setPullRefreshEnable(boolean pullRefreshEnable) {
-        isPullRefreshEnable = pullRefreshEnable;
-    }
-
-    public void setLoadMoreEnable(boolean loadMoreEnable) {
-        isLoadMoreEnable = loadMoreEnable;
-        if (!isLoadMoreEnable) {
-            if (mFooterView != null) {
-                mFooterView.remove(0);
+    public void setLoadingMoreEnabled(boolean loadingMoreEnabled) {
+        this.loadingMoreEnabled = loadingMoreEnabled;
+        if (!loadingMoreEnabled) {
+            if (mFootViews != null) {
+                mFootViews.remove(0);
             }
-
         } else {
-            if (mFooterView != null) {
-                LoadingMoreFooter footer = new LoadingMoreFooter(getContext());
-                mFooterView.put(0, footer);
+            if (mFootViews != null) {
+                LoadingMoreFooter footView = new LoadingMoreFooter(getContext());
+                addFootView(footView, false);
             }
         }
     }
 
-    public void setLoadMoreGong() {
-        if (mFooterView != null) {
-            View footView = mFooterView.get(0);
-            if (null != footView && footView instanceof LoadingMoreFooter) {
-                mFooterView.remove(0);
-            }
-        }
-    }
 
-    public void reset() {
-        isnomore = false;
-        final View footView = mFooterView.get(0);
-        if (footView instanceof LoadingMoreFooter) {
-            ((LoadingMoreFooter) footView).reset();
+    public void setLoadMoreGone() {
+        if (mFootViews == null) {
+            return;
+        }
+        View footView = mFootViews.get(0);
+        if (footView != null && footView instanceof LoadingMoreFooter) {
+            mFootViews.remove(0);
         }
     }
 
@@ -308,47 +334,30 @@ public class XRecyclerView extends RecyclerView {
         void onRefresh();
 
         void onLoadMore();
-
     }
 
-    private int findMax(int[] lastPositions) {
-        int max = lastPositions[0];
-        for (int values : lastPositions) {
-            if (values > max) {
-                max = values;
+    /**
+     * 检测网络是否可用
+     *
+     * @param context
+     * @return
+     */
+    public static boolean isNetWorkConnected(Context context) {
+        if (context != null) {
+            ConnectivityManager mConnectivityManager = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
+            NetworkInfo mNetworkInfo = mConnectivityManager.getActiveNetworkInfo();
+            if (mNetworkInfo != null) {
+                return mNetworkInfo.isAvailable();
             }
         }
-
-        return max;
+        return false;
     }
 
-    private int findMin(int[] firstPositions) {
-        int min = firstPositions[0];
-        for (int values : firstPositions) {
-            if (values < min) {
-                min = values;
-            }
+    public void reset() {
+        isnomore = false;
+        final View footView = mFootViews.get(0);
+        if (footView instanceof LoadingMoreFooter) {
+            ((LoadingMoreFooter) footView).reset();
         }
-
-        return min;
-    }
-
-    private void loadMoreComplete() {
-        isLoadingData = false;
-        View footView = mFooterView.get(0);
-        if (previousTotal < getLayoutManager().getItemCount()) {
-            if (footView instanceof LoadingMoreFooter) {
-                ((LoadingMoreFooter) footView).setSate(LoadingMoreFooter.STATE_COMPLETE);
-            } else {
-                footView.setVisibility(View.GONE);
-            }
-        } else {
-            if (footView instanceof LoadingMoreFooter) {
-                ((LoadingMoreFooter) footView).setSate(LoadingMoreFooter.STATE_NOMORE);
-            } else {
-                footView.setVisibility(View.GONE);
-            }
-        }
-        previousTotal = getLayoutManager().getItemCount();
     }
 }

@@ -38,7 +38,7 @@ public class App extends Application {
 
         Fresco.initialize(this);
         Utils.init(getApplicationContext());
-        LogUtils.init(true, false, 'e', "Zhifu");
+        LogUtils.init(true, false, 'e', "reader");
         app = this;
     }
 }

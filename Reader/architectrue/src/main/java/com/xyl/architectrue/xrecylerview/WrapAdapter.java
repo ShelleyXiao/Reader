@@ -8,46 +8,38 @@ import android.view.View;
 import android.view.ViewGroup;
 
 /**
- * User: ShaudXiao
- * Date: 2017-01-11
- * Time: 11:20
- * Company: zx
- * Description:
- * FIXME
+ * Created by yangcai on 2016/1/28.
  */
-
-
 public class WrapAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
+    private static final int TYPE_REFRESH_HEADER = -5;
+    private static final int TYPE_HEADER = -4;
+    private static final int TYPE_NORMAL = 0;
+    private static final int TYPE_FOOTER = -3;
+    private RecyclerView.Adapter adapter;
 
-    private static final int TYPE_HEADER_REFRESH = 0x01;
-    private static final int TYPE_HEADER = 0x02;
-    private static final int TYPE_NORMAL = 0x04;
-    private static final int TYPE_FOOTER = 0x08;
+    private SparseArray<View> mHeaderViews;
 
-    private RecyclerView.Adapter mAdapter;
+    private SparseArray<View> mFootViews;
 
-    private SparseArray<View> mHeaderView;
-    private SparseArray<View> mFooterView;
+    private int headerPosition = 1;
 
-    private int mHeaderPosition = 1;
-
-    public WrapAdapter(SparseArray<View> headerView, SparseArray<View> footerView, RecyclerView.Adapter adapter) {
-        this.mHeaderView = headerView;
-        this.mFooterView = footerView;
-        this.mAdapter = adapter;
+    public WrapAdapter(SparseArray<View> headerViews, SparseArray<View> footViews, RecyclerView.Adapter adapter) {
+        this.adapter = adapter;
+        this.mHeaderViews = headerViews;
+        this.mFootViews = footViews;
     }
 
     @Override
     public void onAttachedToRecyclerView(RecyclerView recyclerView) {
         super.onAttachedToRecyclerView(recyclerView);
-
-        RecyclerView.LayoutManager layoutManager = recyclerView.getLayoutManager();
-        if (layoutManager instanceof GridLayoutManager) {
-            final GridLayoutManager manager = (GridLayoutManager) recyclerView.getLayoutManager();
-            manager.setSpanSizeLookup(new GridLayoutManager.SpanSizeLookup() {
+        RecyclerView.LayoutManager manager = recyclerView.getLayoutManager();
+        if (manager instanceof GridLayoutManager) {
+            final GridLayoutManager gridManager = ((GridLayoutManager) manager);
+            gridManager.setSpanSizeLookup(new GridLayoutManager.SpanSizeLookup() {
                 @Override
                 public int getSpanSize(int position) {
-                    return (isHeader(position) || isFooter(position)) ? manager.getSpanCount() : 1;
+                    return (isHeader(position) || isFooter(position))
+                            ? gridManager.getSpanCount() : 1;
                 }
             });
         }
@@ -56,27 +48,45 @@ public class WrapAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     @Override
     public void onViewAttachedToWindow(RecyclerView.ViewHolder holder) {
         super.onViewAttachedToWindow(holder);
-
         ViewGroup.LayoutParams lp = holder.itemView.getLayoutParams();
         if (lp != null
                 && lp instanceof StaggeredGridLayoutManager.LayoutParams
-                && (isFooter(holder.getLayoutPosition()) || isHeader(holder.getLayoutPosition()))) {
-            StaggeredGridLayoutManager.LayoutParams layoutParams = (StaggeredGridLayoutManager.LayoutParams) lp;
-            layoutParams.setFullSpan(true);
+                && (isHeader(holder.getLayoutPosition()) || isFooter(holder.getLayoutPosition()))) {
+            StaggeredGridLayoutManager.LayoutParams p = (StaggeredGridLayoutManager.LayoutParams) lp;
+            p.setFullSpan(true);
         }
+    }
+
+    public boolean isHeader(int position) {
+        return position >= 0 && position < mHeaderViews.size();
+    }
+
+    public boolean isFooter(int position) {
+        return position < getItemCount() && position >= getItemCount() - mFootViews.size();
+    }
+
+    public boolean isRefreshHeader(int position) {
+        return position == 0;
+    }
+
+    public int getHeadersCount() {
+        return mHeaderViews.size();
+    }
+
+    public int getFootersCount() {
+        return mFootViews.size();
     }
 
     @Override
     public RecyclerView.ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
-        if (viewType == TYPE_HEADER_REFRESH) {
-            return new SimpleViewHolder(mHeaderView.get(0));
+        if (viewType == TYPE_REFRESH_HEADER) {
+            return new SimpleViewHolder(mHeaderViews.get(0));
         } else if (viewType == TYPE_HEADER) {
-            return new SimpleViewHolder(mHeaderView.get(mHeaderPosition++));
+            return new SimpleViewHolder(mHeaderViews.get(headerPosition++));
         } else if (viewType == TYPE_FOOTER) {
-            return new SimpleViewHolder(mFooterView.get(0));
+            return new SimpleViewHolder(mFootViews.get(0));
         }
-
-        return mAdapter.onCreateViewHolder(parent, viewType);
+        return adapter.onCreateViewHolder(parent, viewType);
     }
 
     @Override
@@ -84,100 +94,77 @@ public class WrapAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         if (isHeader(position)) {
             return;
         }
-
-        int ajustPosition = position - getHeaderCount();
+        int adjPosition = position - getHeadersCount();
         int adapterCount;
-        if (mAdapter != null) {
-            adapterCount = mAdapter.getItemCount();
-            if (ajustPosition < adapterCount) {
-                mAdapter.onBindViewHolder(holder, ajustPosition);
+        if (adapter != null) {
+            adapterCount = adapter.getItemCount();
+            if (adjPosition < adapterCount) {
+                adapter.onBindViewHolder(holder, adjPosition);
+                return;
             }
         }
     }
 
     @Override
     public int getItemCount() {
-        if (null != mAdapter) {
-            return mHeaderView.size() + mFooterView.size() + mAdapter.getItemCount();
+        if (adapter != null) {
+            return getHeadersCount() + getFootersCount() + adapter.getItemCount();
         } else {
-            return mHeaderView.size() + mFooterView.size();
+            return getHeadersCount() + getFootersCount();
         }
-
     }
 
     @Override
     public int getItemViewType(int position) {
         if (isRefreshHeader(position)) {
-            return TYPE_HEADER_REFRESH;
-        } else if (isHeader(position)) {
+            return TYPE_REFRESH_HEADER;
+        }
+        if (isHeader(position)) {
             return TYPE_HEADER;
-        } else if (isFooter(position)) {
+        }
+        if (isFooter(position)) {
             return TYPE_FOOTER;
         }
-        int adjPosition = position - getHeaderCount();
+        int adjPosition = position - getHeadersCount();
         int adapterCount;
-        if (mAdapter != null) {
-            adapterCount = mAdapter.getItemCount();
+        if (adapter != null) {
+            adapterCount = adapter.getItemCount();
             if (adjPosition < adapterCount) {
-                return mAdapter.getItemViewType(adjPosition);
+                return adapter.getItemViewType(adjPosition);
             }
         }
-
         return TYPE_NORMAL;
     }
 
     @Override
     public long getItemId(int position) {
-        if(mAdapter != null && position > mHeaderView.size()) {
-            int adjPosition = position - getHeaderCount();
-            int adpterCount = mAdapter.getItemCount();
-            if(adjPosition < adpterCount) {
-                return mAdapter.getItemId(adjPosition);
+        if (adapter != null && position >= getHeadersCount()) {
+            int adjPosition = position - getHeadersCount();
+            int adapterCount = adapter.getItemCount();
+            if (adjPosition < adapterCount) {
+                return adapter.getItemId(adjPosition);
             }
         }
-
         return -1;
     }
 
     @Override
-    public void registerAdapterDataObserver(RecyclerView.AdapterDataObserver observer) {
-        if(null != mAdapter) {
-            mAdapter.registerAdapterDataObserver(observer);
+    public void unregisterAdapterDataObserver(RecyclerView.AdapterDataObserver observer) {
+        if (adapter != null) {
+            adapter.unregisterAdapterDataObserver(observer);
         }
     }
 
     @Override
-    public void unregisterAdapterDataObserver(RecyclerView.AdapterDataObserver observer) {
-        if(null != mAdapter) {
-            mAdapter.unregisterAdapterDataObserver(observer);
+    public void registerAdapterDataObserver(RecyclerView.AdapterDataObserver observer) {
+        if (adapter != null) {
+            adapter.registerAdapterDataObserver(observer);
         }
     }
 
-    public boolean isHeader(int position) {
-        return position >= 0 && (position < mHeaderView.size());
-    }
-
-    public boolean isFooter(int position) {
-        return position < getItemCount() && position >= getItemCount() - mFooterView.size();
-    }
-
-    public boolean isRefreshHeader(int position) {
-        return position == 0;
-    }
-
-    public int getHeaderCount() {
-        return mHeaderView.size();
-    }
-
-    public int getFootterCount() {
-        return mFooterView.size();
-    }
-
     private class SimpleViewHolder extends RecyclerView.ViewHolder {
-
         public SimpleViewHolder(View itemView) {
             super(itemView);
         }
     }
-
 }

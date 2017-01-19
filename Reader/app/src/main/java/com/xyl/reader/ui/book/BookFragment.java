@@ -1,13 +1,20 @@
 package com.xyl.reader.ui.book;
 
 import android.os.Bundle;
-import android.support.annotation.Nullable;
+import android.support.design.widget.TabLayout;
 import android.support.v4.app.Fragment;
-import android.view.LayoutInflater;
-import android.view.View;
-import android.view.ViewGroup;
+import android.support.v4.view.ViewPager;
 
 import com.xyl.reader.R;
+import com.xyl.reader.adapter.MyFragmentPaperAdapter;
+import com.xyl.reader.base.BaseFragment;
+import com.xyl.reader.databinding.FragmentBookLayoutBinding;
+import com.xyl.reader.ui.gank.child.CustomFragment;
+import com.xyl.reader.ui.gank.child.EeveryDayFragment;
+import com.xyl.reader.ui.gank.child.WelfareFragment;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * User: ShaudXiao
@@ -19,17 +26,57 @@ import com.xyl.reader.R;
  */
 
 
-public class BookFragment extends Fragment {
+public class BookFragment extends BaseFragment<FragmentBookLayoutBinding> {
+
+    private TabLayout mTabLayout;
+    private MyFragmentPaperAdapter mPaperAdapter;
+    private ViewPager mViewPager;
+
+    private List<Fragment> mFragments = new ArrayList<>();
+    private List<String> mTitles = new ArrayList<>();
 
     @Override
     public void onActivityCreated(Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
+        showLoading();
+
+        mTabLayout = bindingContentView.tabBook;
+        mViewPager = bindingContentView.vpBook;
+
+        initFragments();
+        initTitle();
+
+        mPaperAdapter = new MyFragmentPaperAdapter(getChildFragmentManager(), mFragments, mTitles);
+        mViewPager.setAdapter(mPaperAdapter);
+        // 注意内存别溢出
+        mViewPager.setOffscreenPageLimit(3);
+
+        mPaperAdapter.notifyDataSetChanged();
+
+        mTabLayout.setTabMode(TabLayout.MODE_FIXED);
+        mTabLayout.setupWithViewPager(mViewPager);
+
+
+        showContentView();
+
+
     }
 
-    @Nullable
     @Override
-    public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
+    protected int setContent() {
+        return R.layout.fragment_book_layout;
+    }
 
-        return inflater.inflate(R.layout.fragment_book_layout, container, false);
+    private void initFragments() {
+        mFragments.add(new EeveryDayFragment());
+        mFragments.add(new WelfareFragment());
+        mFragments.add(new CustomFragment());
+    }
+
+    private void initTitle() {
+        mTitles.add("综合");
+        mTitles.add("文学");
+        mTitles.add("生活");
+
     }
 }

@@ -1,6 +1,7 @@
 package com.xyl.reader.app;
 
 import com.xyl.architectrue.App;
+import com.xyl.reader.http.HttpUtils;
 
 /**
  * User: ShaudXiao
@@ -17,5 +18,7 @@ public class ReaderApplication extends App {
     @Override
     public void onCreate() {
         super.onCreate();
+
+        HttpUtils.getHttpUtils().setContext(getApplicationContext());
     }
 }

@@ -13,6 +13,7 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import com.xyl.architectrue.R;
+import com.xyl.architectrue.utils.LogUtils;
 
 /**
  * User: ShaudXiao
@@ -52,9 +53,10 @@ public class YunRefreshHeader extends LinearLayout implements BaseRefreshHeader 
 
     private void initView(Context context) {
         LayoutInflater inf = LayoutInflater.from(context);
-        inf.inflate(R.layout.my_refresh_footer, this);
+        inf.inflate(R.layout.yun_refresh_header, this);
         tvMsg = (TextView) findViewById(R.id.msg);
         ivProgress = (ImageView) findViewById(R.id.iv_process);
+
         mAnimationDrawable = (AnimationDrawable) ivProgress.getDrawable();
         if(mAnimationDrawable.isRunning()) {
             mAnimationDrawable.stop();
@@ -62,9 +64,12 @@ public class YunRefreshHeader extends LinearLayout implements BaseRefreshHeader 
         measure(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         mMeasureHeight = getMeasuredHeight();
         setGravity(Gravity.CENTER_HORIZONTAL);
+
         mContainer = (LinearLayout) findViewById(R.id.container);
-        mContainer.setLayoutParams(new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0));
-        setLayoutParams(new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+        LogUtils.e("header ********** init");
+        LogUtils.e("header ********** init " + mContainer);
+        mContainer.setLayoutParams(new LayoutParams(LayoutParams.MATCH_PARENT, 0));
+        setLayoutParams(new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT));
     }
 

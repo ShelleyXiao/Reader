@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layout xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <LinearLayout
+        xmlns:tools="http://schemas.android.com/tools"
+        android:id="@+id/ll_one"
+        android:orientation="vertical"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:layout_margin="10dp">
+
+
+            <ImageView
+                android:id="@+id/iv_one_icon"
+                android:layout_width="match_parent"
+                android:layout_height="127dp"
+                android:scaleType="fitXY"
+                android:src="@drawable/img_two_bi_one"/>
+
+            <TextView
+                android:id="@+id/tv_one_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginTop="5dp"
+                android:textColor="@color/colorContent"
+                android:textSize="12sp"
+                android:maxLines="2"
+                android:text="更多"
+                />
+
+
+    </LinearLayout>
+
+</layout>
